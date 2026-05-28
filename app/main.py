@@ -9,17 +9,24 @@ import json
 import random
 import socket
 
-app = FastAPI(title="Hamer Hunter")
+app = FastAPI(title="Hamer Hunter Ultra")
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.makedirs("logs", exist_ok=True)
 
 USER_AGENTS = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36"
 ]
 
-COMMON_PORTS = [21, 22, 23, 25, 53, 80, 443, 3306, 5432, 8080, 8443, 8888, 27017]
+# Великий словник для brute force
+COMMON_PATHS = [
+    "admin", "wp-admin", "administrator", "login", "dashboard", "phpmyadmin", "api", "backup",
+    "test", "dev", "staging", "old", "new", "config", "debug", "logs", "server-status",
+    "wp-json", "xmlrpc.php", "vendor", ".git", ".env", "phpinfo.php", "info.php", "admin.php",
+    "cpanel", "webmail", "mysql", "database", "assets", "uploads", "files", "backup.sql"
+]
 
 async def make_request(url: str, proxy: str = None):
     headers = {"User-Agent": random.choice(USER_AGENTS)}
@@ -43,8 +50,7 @@ async def scan(target_url: str = Form(...), scan_type: str = Form(...), proxy: s
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "proxy": proxy or "Без проксі",
         "findings": [],
-        "title": "No title",
-        "status_code": None
+        "title": "No title"
     }
 
     try:
@@ -55,76 +61,92 @@ async def scan(target_url: str = Form(...), scan_type: str = Form(...), proxy: s
     except Exception as e:
         return JSONResponse({"error": f"Не вдалося підключитися: {str(e)}"}, status_code=400)
 
-    # Паралельні завдання
+    # Паралельні перевірки
     tasks = [
         check_security_headers(target_url, proxy),
         check_sensitive_files(target_url, proxy),
         basic_xss_test(target_url, proxy),
         advanced_sqli_test(target_url, proxy),
-        directory_brute(target_url, proxy),
-        tech_detection(target_url, proxy),
-        port_scan(target_url, proxy),
-        waf_detection(target_url, proxy)
+        ultra_directory_brute(target_url, proxy),
+        port_scan(target_url),
+        waf_detection(target_url, proxy),
+        open_redirect_test(target_url, proxy),
+        tech_detection(target_url, proxy)
     ]
 
-    header_check, sensitive, xss, sqli, directories, tech, ports, waf = await asyncio.gather(*tasks)
+    header_check, sensitive, xss, sqli, directories, ports, waf, redirect, tech = await asyncio.gather(*tasks)
 
-    # === ОБРОБКА ЗНАХІДОК З РЕКОМЕНДАЦІЯМИ ===
+    # === РЕЗУЛЬТАТИ З РЕКОМЕНДАЦІЯМИ ===
     if header_check.get("missing"):
         results["findings"].append({
-            "type": "Security Headers", "severity": "Medium",
+            "type": "Security Headers",
+            "severity": "Medium",
             "description": f"Відсутні: {', '.join(header_check['missing'])}",
-            "fix": "Додати HSTS, CSP, X-Frame-Options у конфігурацію сервера."
+            "fix": "Додати HSTS, CSP, X-Frame-Options у конфігурацію сервера (Nginx/Apache)."
         })
 
     if sensitive:
         results["findings"].append({
-            "type": "Sensitive Files", "severity": "Critical",
+            "type": "Sensitive / Dangerous Files",
+            "severity": "Critical",
             "description": f"Знайдено: {', '.join(sensitive)}",
-            "fix": "Заблокувати доступ через .htaccess / nginx config + видалити файли."
+            "fix": "Видалити файли або заблокувати доступ через .htaccess / nginx."
         })
 
     if xss:
         results["findings"].append({
-            "type": "Reflected XSS", "severity": "High",
+            "type": "Reflected XSS",
+            "severity": "High",
             "description": f"Виявлено {len(xss)} вразливих payload'ів",
-            "fix": "Екранувати всі виводи (htmlspecialchars, шаблонизатори з autoescape)."
+            "fix": "Екранувати всі виводи даних (htmlspecialchars, autoescape)."
         })
 
     if sqli:
         results["findings"].append({
-            "type": "SQL Injection", "severity": "Critical",
-            "description": f"Тип: {sqli['type']} в параметрі",
-            "fix": "Використовувати Prepared Statements / ORM. Ніколи не конкатенувати SQL."
+            "type": "SQL Injection",
+            "severity": "Critical",
+            "description": f"Виявлено можливу SQL-ін'єкцію ({sqli})",
+            "fix": "Перейти на Prepared Statements / Parameterized Queries."
         })
 
     if directories:
         results["findings"].append({
-            "type": "Open Directories", "severity": "Medium",
-            "description": f"Відкриті папки: {', '.join(directories[:6])}",
-            "fix": "Налаштувати 403 Forbidden для всіх непотрібних директорій."
+            "type": "Open Directories / Panels",
+            "severity": "High",
+            "description": f"Знайдено {len(directories)} відкритих шляхів",
+            "fix": "Закрити доступ (403 Forbidden) до адмін-панелей."
+        })
+
+    if ports:
+        results["findings"].append({
+            "type": "Open Ports",
+            "severity": "Medium",
+            "description": f"Відкриті порти: {', '.join(map(str, ports))}",
+            "fix": "Закрити непотрібні порти в firewall."
+        })
+
+    if redirect:
+        results["findings"].append({
+            "type": "Open Redirect",
+            "severity": "Medium",
+            "description": "Виявлено вразливість Open Redirect",
+            "fix": "Валідувати та фільтрувати всі редиректи."
         })
 
     if tech:
         results["findings"].append({
-            "type": "Technologies", "severity": "Info",
+            "type": "Technology Detected",
+            "severity": "Info",
             "description": f"Виявлено: {tech}",
-            "fix": "Оновити до останньої версії + перевірити відомі CVE."
-        })
-
-    if ports:
-        open_ports = [f"{p}/tcp" for p in ports]
-        results["findings"].append({
-            "type": "Open Ports", "severity": "Medium",
-            "description": f"Відкриті порти: {', '.join(open_ports)}",
-            "fix": "Закрити непотрібні порти в firewall (ufw/firewalld)."
+            "fix": "Оновити до останньої версії та перевірити відомі вразливості."
         })
 
     if waf:
         results["findings"].append({
-            "type": "WAF Protection", "severity": "Info",
-            "description": f"Виявлено захист: {waf}",
-            "fix": "Перевірити правила WAF на пропуск вразливостей."
+            "type": "WAF Protection",
+            "severity": "Info",
+            "description": f"Захист: {waf}",
+            "fix": "Перевірити правила WAF."
         })
 
     # Логування
@@ -137,7 +159,7 @@ async def scan(target_url: str = Form(...), scan_type: str = Form(...), proxy: s
     return results
 
 
-# ====================== МОДУЛІ ======================
+# ====================== ULTRA МОДУЛІ ======================
 
 async def check_security_headers(url: str, proxy=None):
     try:
@@ -148,7 +170,7 @@ async def check_security_headers(url: str, proxy=None):
             "CSP": "content-security-policy" in h,
             "X-Frame": "x-frame-options" in h,
             "X-Content": "x-content-type-options" in h,
-            "Referrer-Policy": "referrer-policy" in h
+            "Referrer": "referrer-policy" in h
         }
         return {"missing": [k for k, v in checks.items() if not v]}
     except:
@@ -156,82 +178,66 @@ async def check_security_headers(url: str, proxy=None):
 
 async def check_sensitive_files(url: str, proxy=None):
     base = url.rstrip("/")
-    files = [".env", "wp-config.php", ".git/HEAD", "config.php", "backup.sql", ".DS_Store"]
+    files = [".env", "wp-config.php", ".git/HEAD", "config.php", "backup.sql", "phpinfo.php", "info.php"]
     found = []
     async with httpx.AsyncClient(proxy=proxy, timeout=7.0) as client:
         for f in files:
             try:
                 r = await client.get(f"{base}/{f}")
-                if r.status_code == 200 and len(r.text) > 25:
+                if r.status_code == 200 and len(r.text) > 30:
                     found.append(f)
             except:
                 pass
     return found
 
 async def basic_xss_test(url: str, proxy=None):
-    payloads = ["<script>alert(1)</script>", "<img src=x onerror=alert(1)>", "<svg/onload=alert(1)>"]
+    payloads = ["<script>alert(1)</script>", "<img src=x onerror=alert(1)>", "<svg/onload=alert(1)>", "javascript:alert(1)"]
     results = []
     for p in payloads:
         try:
-            test_url = f"{url}?q={p}"
+            test_url = f"{url}?q={p}" if "?" not in url else f"{url}&q={p}"
             resp = await make_request(test_url, proxy)
-            if p in resp.text:
+            if p in resp.text.lower():
                 results.append(p)
         except:
             pass
     return results
 
 async def advanced_sqli_test(url: str, proxy=None):
-    for payload, ptype in [(" ' OR 1=1 --", "Classic"), ("' UNION SELECT 1,2 --", "Union")]:
+    payloads = ["' OR 1=1 --", "' UNION SELECT 1,2,3 --", "1' OR '1'='1"]
+    for p in payloads:
         try:
-            test_url = f"{url}?id={payload}" if "?" not in url else f"{url}&id={payload}"
+            test_url = f"{url}?id={p}" if "?" not in url else f"{url}&id={p}"
             resp = await make_request(test_url, proxy)
             text = resp.text.lower()
-            if any(err in text for err in ["syntax error", "mysql", "sql", "unclosed", "warning"]):
-                return {"type": ptype, "param": "id"}
+            if any(x in text for x in ["syntax error", "mysql", "sql", "unclosed", "warning"]):
+                return "Possible SQLi"
         except:
             pass
     return None
 
-async def directory_brute(url: str, proxy=None):
+async def ultra_directory_brute(url: str, proxy=None):
     base = url.rstrip("/")
-    dirs = ["admin", "wp-admin", "administrator", "login", "phpmyadmin", "backup", "test", "api"]
     found = []
     async with httpx.AsyncClient(proxy=proxy, timeout=6.0) as client:
-        for d in dirs:
+        for path in COMMON_PATHS:
             try:
-                r = await client.get(f"{base}/{d}")
+                r = await client.get(f"{base}/{path}")
                 if r.status_code in (200, 301, 403):
-                    found.append(d)
+                    found.append(path)
             except:
                 pass
     return found
 
-async def tech_detection(url: str, proxy=None):
-    try:
-        resp = await make_request(url, proxy)
-        text = resp.text.lower()
-        headers = resp.headers
-        if "wp-content" in text or "wordpress" in text:
-            return "WordPress"
-        if "laravel" in text:
-            return "Laravel"
-        if "x-powered-by" in headers:
-            return f"PHP ({headers.get('x-powered-by')})"
-        return "Інше"
-    except:
-        return None
-
-async def port_scan(url: str, proxy=None):   # Обмежений порт-скан
+async def port_scan(url: str):
     try:
         hostname = url.split("//")[-1].split("/")[0].split(":")[0]
         open_ports = []
-        for port in COMMON_PORTS:
+        for port in [21, 22, 23, 25, 80, 443, 3306, 5432, 8080, 8443]:
             try:
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                sock.settimeout(1.5)
-                result = sock.connect_ex((hostname, port))
-                if result == 0:
+                sock.settimeout(1.2)
+                if sock.connect_ex((hostname, port)) == 0:
                     open_ports.append(port)
                 sock.close()
             except:
@@ -243,14 +249,37 @@ async def port_scan(url: str, proxy=None):   # Обмежений порт-ск�
 async def waf_detection(url: str, proxy=None):
     try:
         resp = await make_request(url, proxy)
-        headers = resp.headers
-        server = headers.get("server", "").lower()
-        if "cloudflare" in server or "cf-ray" in headers:
+        h = resp.headers
+        if "cloudflare" in str(h).lower() or "cf-ray" in h:
             return "Cloudflare"
-        if "mod_security" in server or "owasp" in str(resp.text).lower():
-            return "ModSecurity / OWASP"
-        if "akamai" in server:
+        if "akamai" in str(h).lower():
             return "Akamai"
-        return "Не виявлено або інший"
+        if "server" in h and "nginx" in h.get("server", "").lower():
+            return "Nginx (можливо з ModSecurity)"
+        return "Не виявлено"
     except:
         return "Не виявлено"
+
+async def open_redirect_test(url: str, proxy=None):
+    payloads = ["//google.com", "https://google.com", "/\\/google.com"]
+    for p in payloads:
+        try:
+            test_url = f"{url}?url={p}" if "?" not in url else f"{url}&url={p}"
+            resp = await make_request(test_url, proxy)
+            if resp.history and any("google.com" in str(r.url) for r in resp.history):
+                return True
+        except:
+            pass
+    return False
+
+async def tech_detection(url: str, proxy=None):
+    try:
+        resp = await make_request(url, proxy)
+        text = resp.text.lower()
+        if "wp-content" in text or "wordpress" in text: return "WordPress"
+        if "laravel" in text: return "Laravel"
+        if "drupal" in text: return "Drupal"
+        if "shopify" in text: return "Shopify"
+        return None
+    except:
+        return None
