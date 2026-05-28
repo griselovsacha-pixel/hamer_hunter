@@ -9,9 +9,7 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; }
-        .lion-logo {
-            animation: roar 3s infinite alternate;
-        }
+        .lion-logo { animation: roar 3s infinite alternate; }
         @keyframes roar {
             0% { transform: scale(1) rotate(-3deg); }
             100% { transform: scale(1.05) rotate(3deg); }
@@ -34,137 +32,143 @@
         </header>
 
         <div class="max-w-4xl mx-auto px-6 py-12">
-            <div class="text-center mb-12">
-                <h2 class="text-5xl font-bold mb-4">Знаходь уразливості першим</h2>
-                <p class="text-zinc-400 text-lg">Потужний сканер вразливостей для етичних хакерів</p>
+            <div class="text-center mb-10">
+                <h2 class="text-5xl font-bold mb-3">Знаходь уразливості першим</h2>
+                <p class="text-zinc-400">Потужний сканер для етичних хакерів</p>
             </div>
 
-            <div class="bg-zinc-900 rounded-2xl p-8 border border-red-900/50">
-                <form id="scanForm" class="space-y-6" onsubmit="return false;">
+            <div class="bg-zinc-900 rounded-3xl p-8 border border-red-900/50">
+                <form id="scanForm" class="space-y-6">
                     <div>
                         <label class="block text-sm text-zinc-400 mb-2">Цільовий URL</label>
-                        <input type="url" id="target_url" name="target_url" 
-                               class="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-5 py-4 text-lg focus:outline-none focus:border-red-600 transition text-white"
+                        <input type="url" id="target_url" 
+                               class="w-full bg-zinc-950 border border-zinc-700 rounded-2xl px-5 py-4 text-lg focus:outline-none focus:border-red-600"
                                placeholder="https://example.com" required>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm text-zinc-400 mb-2">Proxy (необов'язково)</label>
+                        <input type="text" id="proxy" 
+                               class="w-full bg-zinc-950 border border-zinc-700 rounded-2xl px-5 py-4"
+                               placeholder="http://user:pass@ip:port або socks5://ip:port">
                     </div>
 
                     <div class="grid grid-cols-2 gap-4">
                         <button type="button" onclick="startScan('quick')"
-                                class="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 py-5 rounded-2xl font-semibold text-lg transition-all active:scale-95">
+                                class="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 py-6 rounded-2xl font-semibold text-lg transition-all">
                             ⚡ ШВИДКИЙ СКАН
                         </button>
                         <button type="button" onclick="startScan('full')"
-                                class="bg-gradient-to-r from-amber-600 to-red-700 hover:from-amber-500 hover:to-red-600 py-5 rounded-2xl font-semibold text-lg transition-all active:scale-95">
+                                class="bg-gradient-to-r from-orange-600 to-red-700 hover:from-orange-500 py-6 rounded-2xl font-semibold text-lg transition-all">
                             🔥 РОЗШИРЕНИЙ СКАН
                         </button>
                     </div>
                 </form>
 
+                <!-- Результати -->
                 <div id="results" class="hidden mt-10">
                     <div class="flex justify-between items-center mb-4">
                         <h3 class="text-2xl font-bold">Результати сканування</h3>
-                        <button onclick="resetScan()" 
-                                class="text-zinc-400 hover:text-white text-sm bg-zinc-800 px-4 py-2 rounded-xl transition">Новий скан</button>
+                        <div class="flex gap-3">
+                            <button onclick="loadLogs()" 
+                                    class="text-zinc-400 hover:text-white px-4 py-2 rounded-xl border border-zinc-700 text-sm">
+                                📜 Логи
+                            </button>
+                            <button onclick="clearLogs()" 
+                                    class="text-red-400 hover:text-red-500 px-4 py-2 rounded-xl border border-red-900 text-sm">
+                                🗑 Очистити логи
+                            </button>
+                            <button onclick="resetScan()" 
+                                    class="text-zinc-400 hover:text-white px-4 py-2 rounded-xl border border-zinc-700 text-sm">
+                                Новий скан
+                            </button>
+                        </div>
                     </div>
                     <div id="scanContent" class="space-y-6"></div>
                 </div>
-            </div>
-
-            <div class="text-center text-xs text-zinc-500 mt-8">
-                ⚠️ Використовуйте тільки на сайтах, на які маєте дозвіл.<br>
-                Агресивне сканування без дозволу може бути незаконним.
             </div>
         </div>
     </div>
 
     <script>
         async function startScan(type) {
-            const urlInput = document.getElementById('target_url');
-            let url = urlInput.value.trim();
+            const url = document.getElementById('target_url').value.trim();
+            const proxy = document.getElementById('proxy').value.trim();
+
             if (!url) return alert("Введіть URL!");
 
             document.getElementById('results').classList.remove('hidden');
             document.getElementById('scanContent').innerHTML = `
-                <div class="text-center py-12">
-                    <div class="animate-spin w-12 h-12 border-4 border-red-600 border-t-transparent rounded-full mx-auto mb-4"></div>
-                    <p class="text-lg">Виконується ${type === 'quick' ? 'швидкий' : 'розширений'} скан...</p>
-                    <p class="text-zinc-500 text-sm mt-2">Аналізуємо заголовки, файли та параметри запиту</p>
+                <div class="text-center py-16">
+                    <div class="animate-spin w-16 h-16 border-4 border-red-600 border-t-transparent rounded-full mx-auto mb-6"></div>
+                    <p class="text-xl">Виконується ${type === 'quick' ? 'швидкий' : 'розширений'} скан...</p>
+                    <p class="text-zinc-500 mt-2">Працюємо через ${proxy ? 'проксі' : 'пряме з\'єднання'}</p>
                 </div>
             `;
 
             const formData = new FormData();
             formData.append('target_url', url);
             formData.append('scan_type', type);
+            if (proxy) formData.append('proxy', proxy);
 
             try {
-                const response = await fetch('/scan', {
-                    method: 'POST',
-                    body: formData
-                });
+                const response = await fetch('/scan', { method: 'POST', body: formData });
                 const data = await response.json();
+
+                if (data.error) {
+                    document.getElementById('scanContent').innerHTML = `
+                        <div class="bg-red-950 border border-red-700 p-8 rounded-2xl text-center">
+                            <p class="text-red-400 text-lg">${data.error}</p>
+                        </div>`;
+                    return;
+                }
+
                 displayResults(data);
             } catch (e) {
-                document.getElementById('scanContent').innerHTML = `
-                    <div class="bg-red-950 border border-red-800 p-6 rounded-2xl text-center">
-                        <p class="text-red-400">Помилка відправки запиту або з'єднання з сервером сканера.</p>
-                    </div>
-                `;
+                document.getElementById('scanContent').innerHTML = `<p class="text-red-400">Помилка з'єднання з сервером.</p>`;
             }
         }
 
         function displayResults(data) {
             let html = `<div class="bg-zinc-950 border border-zinc-800 rounded-2xl p-6">`;
-            
-            if (data.error) {
-                html += `<p class="text-red-400 mb-2">❌ Помилка: ${data.error}</p></div>`;
-                document.getElementById('scanContent').innerHTML = html;
-                return;
-            }
-
-            html += `<p class="text-emerald-400 mb-2">✅ Скан завершено для <strong>${data.target}</strong></p>`;
-            html += `<p class="text-xs text-zinc-500 mb-5">Заголовок: "${data.title}" | HTTP Код: ${data.status_code || 'Невідомо'}</p>`;
+            html += `<p class="text-emerald-400">✅ Скан завершено для <strong>${data.target}</strong></p>`;
+            html += `<p class="text-xs text-zinc-500">Proxy: ${data.proxy} | Час: ${data.timestamp}</p>`;
 
             if (data.findings && data.findings.length > 0) {
-                html += `<div class="space-y-4">`;
                 data.findings.forEach(f => {
-                    // Явне оголошення класів для JIT компілятора Tailwind
-                    let styles = { border: 'border-emerald-600', bg: 'bg-emerald-950/50', text: 'text-emerald-400' };
-
-                    if (f.severity === 'High') {
-                        styles = { border: 'border-red-600', bg: 'bg-red-950/50', text: 'text-red-400' };
-                    } else if (f.severity === 'Medium') {
-                        styles = { border: 'border-amber-600', bg: 'bg-amber-950/50', text: 'text-amber-400' };
-                    } else if (f.severity === 'Info') {
-                        styles = { border: 'border-blue-600', bg: 'bg-blue-950/50', text: 'text-blue-400' };
-                    }
-
+                    let color = f.severity === 'Critical' ? 'red' : 
+                               f.severity === 'High' ? 'red' : 
+                               f.severity === 'Medium' ? 'amber' : 'blue';
+                    
                     html += `
-                        <div class="border-l-4 ${styles.border} bg-zinc-900 p-5 rounded-r-2xl border-t border-b border-r border-zinc-800/40">
-                            <div class="flex justify-between items-center">
-                                <span class="font-semibold text-white">${f.type}</span>
-                                <span class="text-xs px-3 py-1 ${styles.bg} ${styles.text} rounded-full font-mono border ${styles.border}/30">
-                                    ${f.severity}
-                                </span>
+                        <div class="mt-6 border-l-4 border-${color}-600 bg-zinc-900 p-5 rounded-r-2xl">
+                            <div class="flex justify-between">
+                                <span class="font-bold">${f.type}</span>
+                                <span class="text-xs px-3 py-1 bg-${color}-950 text-${color}-400 rounded-full">${f.severity}</span>
                             </div>
-                            <p class="text-zinc-300 mt-2 text-sm">${f.description}</p>
-                        </div>
-                    `;
+                            <p class="text-zinc-300 mt-2">${f.description}</p>
+                        </div>`;
                 });
-                html += `</div>`;
             } else {
-                html += `
-                    <div class="p-6 bg-emerald-950/20 border border-emerald-900/50 rounded-xl text-center text-emerald-400">
-                        <i class="fa-solid fa-shield-halved text-2xl mb-2 block"></i>
-                        Базових вразливостей не знайдено. Сайт виглядає захищеним.
-                    </div>`;
+                html += `<div class="text-emerald-400 mt-6">Вразливостей не знайдено на базовому рівні.</div>`;
             }
-
             html += `</div>`;
             document.getElementById('scanContent').innerHTML = html;
         }
 
+        async function clearLogs() {
+            if (!confirm("Очистити всі логи?")) return;
+            await fetch('/clear-logs', { method: 'POST' });
+            alert("Логи очищено!");
+        }
+
+        async function loadLogs() {
+            const res = await fetch('/logs');
+            const data = await res.json();
+            alert("Останні логи:\n\n" + data.logs.join("\n"));
+        }
+
         function resetScan() {
-            document.getElementById('target_url').value = '';
             document.getElementById('results').classList.add('hidden');
             document.getElementById('scanContent').innerHTML = '';
         }
