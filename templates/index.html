@@ -3,68 +3,74 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hamer Hunter - Vulnerability Scanner</title>
+    <title>Hamer Hunter Ultra</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
         body { font-family: 'Inter', sans-serif; }
-        .lion-logo { animation: roar 4s infinite alternate; }
-        @keyframes roar { 0% { transform: scale(1) rotate(-5deg); } 100% { transform: scale(1.08) rotate(5deg); } }
+        .lion-logo { animation: roar 3s infinite alternate; }
+        @keyframes roar { 0% { transform: scale(1) rotate(-4deg); } 100% { transform: scale(1.07) rotate(4deg); } }
     </style>
 </head>
 <body class="bg-zinc-950 text-white">
     <div class="min-h-screen">
-        <header class="border-b border-red-900 bg-black py-4">
+        <header class="border-b border-red-900 bg-black py-5">
             <div class="max-w-6xl mx-auto px-6 flex items-center justify-between">
                 <div class="flex items-center gap-4">
-                    <img src="https://i.ibb.co/pbwGZ/Fierce-red-lion.png" alt="Hamer Hunter" class="w-14 h-14 lion-logo">
+                    <img src="https://i.ibb.co/pbwGZ/Fierce-red-lion.png" alt="Hamer Hunter" class="w-16 h-16 lion-logo">
                     <div>
                         <h1 class="text-4xl font-bold tracking-tighter text-red-500">HAMER HUNTER</h1>
-                        <p class="text-xs text-zinc-500">Advanced Vulnerability Scanner</p>
+                        <p class="text-red-600 text-sm -mt-1">ULTRA EDITION</p>
                     </div>
                 </div>
-                <div class="text-red-600 font-mono">by Хамер</div>
+                <div class="text-zinc-500 font-mono text-sm">by Хамер</div>
             </div>
         </header>
 
-        <div class="max-w-5xl mx-auto px-6 py-10">
-            <div class="text-center mb-10">
-                <h2 class="text-5xl font-bold mb-3">Знаходь уразливості першим</h2>
-                <p class="text-zinc-400 text-lg">Порти • WAF • SQLi • XSS • Директорії • Технології</p>
+        <div class="max-w-5xl mx-auto px-6 py-12">
+            <div class="text-center mb-12">
+                <h2 class="text-5xl font-bold mb-4">Hamer Hunter Ultra</h2>
+                <p class="text-zinc-400 text-xl">Порти • WAF • SQLi • XSS • Brute Force • Smart Detection</p>
             </div>
 
-            <div class="bg-zinc-900 rounded-3xl p-8 border border-red-900/50">
-                <form id="scanForm" class="space-y-6">
+            <div class="bg-zinc-900 rounded-3xl p-10 border border-red-900/60">
+                <form id="scanForm" class="space-y-8">
                     <div>
                         <label class="block text-sm text-zinc-400 mb-2">Цільовий URL</label>
-                        <input type="url" id="target_url" class="w-full bg-zinc-950 border border-zinc-700 rounded-2xl px-5 py-4 text-lg focus:border-red-600" 
+                        <input type="url" id="target_url" 
+                               class="w-full bg-zinc-950 border border-zinc-700 rounded-2xl px-6 py-5 text-lg focus:border-red-600 focus:outline-none"
                                placeholder="https://example.com" required>
                     </div>
 
                     <div>
-                        <label class="block text-sm text-zinc-400 mb-2">Proxy (необов'язково)</label>
-                        <input type="text" id="proxy" class="w-full bg-zinc-950 border border-zinc-700 rounded-2xl px-5 py-4" 
+                        <label class="block text-sm text-zinc-400 mb-2">Proxy (опціонально)</label>
+                        <input type="text" id="proxy" 
+                               class="w-full bg-zinc-950 border border-zinc-700 rounded-2xl px-6 py-5"
                                placeholder="http://user:pass@ip:port або socks5://ip:port">
                     </div>
 
-                    <div class="grid grid-cols-2 gap-4">
-                        <button type="button" onclick="startScan('quick')" 
-                                class="bg-gradient-to-r from-red-600 to-red-700 py-6 rounded-2xl font-bold text-lg hover:brightness-110">
+                    <div class="grid grid-cols-2 gap-6">
+                        <button type="button" onclick="startScan('quick')"
+                                class="bg-gradient-to-r from-red-600 to-red-700 py-7 rounded-2xl font-bold text-xl hover:brightness-110 transition">
                             ⚡ ШВИДКИЙ СКАН
                         </button>
-                        <button type="button" onclick="startScan('full')" 
-                                class="bg-gradient-to-r from-amber-600 to-red-700 py-6 rounded-2xl font-bold text-lg hover:brightness-110">
-                            🔥 РОЗШИРЕНИЙ СКАН
+                        <button type="button" onclick="startScan('full')"
+                                class="bg-gradient-to-r from-amber-600 to-red-700 py-7 rounded-2xl font-bold text-xl hover:brightness-110 transition">
+                            🔥 ULTRA СКАН
                         </button>
                     </div>
                 </form>
 
-                <div id="results" class="hidden mt-10">
-                    <div class="flex justify-between mb-4">
-                        <h3 class="text-2xl font-bold">Результати сканування</h3>
-                        <button onclick="resetScan()" class="text-zinc-400 hover:text-white px-5 py-2 border border-zinc-700 rounded-xl">Новий скан</button>
+                <!-- Результати -->
+                <div id="results" class="hidden mt-12">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-3xl font-bold">Результати сканування</h3>
+                        <button onclick="resetScan()" 
+                                class="px-6 py-3 border border-zinc-700 hover:border-red-600 rounded-2xl transition">
+                            Новий скан
+                        </button>
                     </div>
-                    <div id="scanContent" class="space-y-6"></div>
+                    <div id="scanContent" class="space-y-8"></div>
                 </div>
             </div>
         </div>
@@ -79,10 +85,10 @@
 
             document.getElementById('results').classList.remove('hidden');
             document.getElementById('scanContent').innerHTML = `
-                <div class="text-center py-20">
-                    <div class="animate-spin w-20 h-20 border-4 border-red-600 border-t-transparent rounded-full mx-auto mb-6"></div>
-                    <p class="text-2xl">Виконується ${type === 'quick' ? 'швидкий' : 'повний'} скан...</p>
-                    <p class="text-zinc-500 mt-3">Перевіряємо порти, WAF, вразливості та захист</p>
+                <div class="text-center py-24">
+                    <div class="animate-spin w-24 h-24 border-4 border-red-600 border-t-transparent rounded-full mx-auto mb-8"></div>
+                    <p class="text-2xl font-semibold">Виконується ${type === 'full' ? 'ULTRA' : 'Швидкий'} скан...</p>
+                    <p class="text-zinc-500 mt-4">Аналізую технології, порти, вразливості та генерую тести...</p>
                 </div>
             `;
 
@@ -92,45 +98,47 @@
             if (proxy) formData.append('proxy', proxy);
 
             try {
-                const res = await fetch('/scan', { method: 'POST', body: formData });
-                const data = await res.json();
+                const response = await fetch('/scan', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
 
                 if (data.error) {
-                    document.getElementById('scanContent').innerHTML = `<div class="text-red-400 text-center p-10">${data.error}</div>`;
+                    document.getElementById('scanContent').innerHTML = `<div class="bg-red-950 p-10 rounded-2xl text-red-400 text-center">${data.error}</div>`;
                     return;
                 }
 
                 displayResults(data);
             } catch (e) {
-                document.getElementById('scanContent').innerHTML = `<div class="text-red-400 text-center p-10">Помилка з'єднання</div>`;
+                document.getElementById('scanContent').innerHTML = `<div class="text-red-400 text-center p-10">Помилка з'єднання з сервером</div>`;
             }
         }
 
         function displayResults(data) {
-            let html = `<div class="bg-zinc-950 border border-zinc-800 rounded-2xl p-7">`;
-            html += `<p class="text-emerald-400 text-xl">✅ Скан завершено: <strong>${data.target}</strong></p>`;
-            html += `<p class="text-xs text-zinc-500 mt-1">Час: ${data.timestamp} | Proxy: ${data.proxy}</p>`;
+            let html = `<div class="bg-zinc-950 border border-zinc-800 rounded-3xl p-8">`;
+            html += `<p class="text-emerald-400 text-2xl mb-2">✅ Скан завершено</p>`;
+            html += `<p class="text-zinc-400">${data.target} | ${data.timestamp}</p>`;
 
             if (data.findings && data.findings.length > 0) {
                 data.findings.forEach(f => {
-                    const color = f.severity === 'Critical' ? 'red' : 
-                                 f.severity === 'High' ? 'orange' : 
-                                 f.severity === 'Medium' ? 'amber' : 'blue';
+                    let color = 'blue';
+                    if (f.severity === 'Critical') color = 'red';
+                    else if (f.severity === 'High') color = 'orange';
+                    else if (f.severity === 'Medium') color = 'amber';
 
                     html += `
-                        <div class="mt-6 p-6 border-l-4 border-${color}-600 bg-zinc-900/70 rounded-r-2xl">
-                            <div class="flex justify-between items-start">
-                                <div>
-                                    <span class="font-bold text-lg">${f.type}</span>
-                                    <span class="ml-3 text-xs px-3 py-1 bg-${color}-900 text-${color}-400 rounded-full">${f.severity}</span>
-                                </div>
+                        <div class="mt-8 border-l-4 border-${color}-600 bg-zinc-900 p-6 rounded-r-3xl">
+                            <div class="flex justify-between">
+                                <span class="font-bold text-xl">${f.type}</span>
+                                <span class="px-4 py-1 text-xs font-mono bg-${color}-900 text-${color}-400 rounded-full">${f.severity}</span>
                             </div>
                             <p class="text-zinc-300 mt-3">${f.description}</p>
-                            ${f.fix ? `<p class="text-emerald-400 text-sm mt-3"><strong>Як виправити:</strong> ${f.fix}</p>` : ''}
+                            ${f.fix ? `<p class="mt-4 text-emerald-400 text-sm"><strong>Рекомендація:</strong> ${f.fix}</p>` : ''}
                         </div>`;
                 });
             } else {
-                html += `<div class="text-emerald-400 p-10 text-center">Вразливостей не виявлено на базовому рівні.</div>`;
+                html += `<div class="text-emerald-400 text-center py-16 text-xl">Вразливостей не знайдено на даному рівні.</div>`;
             }
 
             html += `</div>`;
