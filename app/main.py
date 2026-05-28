@@ -12,26 +12,23 @@ import random
 
 app = FastAPI(title="Hamer Hunter")
 
-# === Виправлення шляху для Render ===
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
 
-# Створюємо папки
 os.makedirs("logs", exist_ok=True)
 os.makedirs(TEMPLATES_DIR, exist_ok=True)
 
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
 
-# Виправлений Jinja2Templates
+# Виправлений Jinja2
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"
 ]
 
-SQLI_PAYLOADS = ["' OR 1=1 --", "' UNION SELECT 1,2,3 --", "1' OR '1'='1"]
+SQLI_PAYLOADS = ["' OR 1=1 --", "' UNION SELECT 1,2 --", "1' OR '1'='1"]
 
 async def make_request(url: str, proxy: str = None):
     headers = {"User-Agent": random.choice(USER_AGENTS)}
@@ -41,9 +38,9 @@ async def make_request(url: str, proxy: str = None):
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
+    # Спрощений варіант без зайвих даних у контексті
     return templates.TemplateResponse("index.html", {"request": request})
 
-# === SCAN ENDPOINT ===
 @app.post("/scan")
 async def scan(target_url: str = Form(...), scan_type: str = Form(...), proxy: str = Form(None)):
     if not target_url.startswith(("http://", "https://")):
@@ -63,18 +60,17 @@ async def scan(target_url: str = Form(...), scan_type: str = Form(...), proxy: s
         resp = await make_request(target_url, proxy)
         results["status_code"] = resp.status_code
         soup = BeautifulSoup(resp.text, 'html.parser')
-        results["title"] = (soup.title.string.strip() if soup.title else "No title")
+        results["title"] = soup.title.string.strip() if soup.title else "No title"
     except Exception as e:
         return JSONResponse({"error": f"Не вдалося підключитися: {str(e)}"}, status_code=400)
 
-    # Паралельні задачі
+    # Сканування
     tasks = [
         check_security_headers(target_url, proxy),
         check_sensitive_files(target_url, proxy),
         basic_xss_test(target_url, proxy),
         basic_sqli_test(target_url, proxy)
     ]
-
     header_check, sensitive, xss, sqli = await asyncio.gather(*tasks)
 
     if header_check.get("missing"):
@@ -87,12 +83,12 @@ async def scan(target_url: str = Form(...), scan_type: str = Form(...), proxy: s
         results["findings"].append({"type": "Reflected XSS", "severity": "High", "description": f"Виявлено {len(xss)} payload'ів"})
 
     if sqli:
-        results["findings"].append({"type": "SQL Injection", "severity": "Critical", "description": "Можлива SQL-ін'єкція виявлена!"})
+        results["findings"].append({"type": "SQL Injection", "severity": "Critical", "description": "Можлива SQL-ін'єкція!"})
 
     if scan_type == "full":
-        results["findings"].append({"type": "Розширений режим", "severity": "Info", "description": "Проксі + розширені тести"})
+        results["findings"].append({"type": "Розширений", "severity": "Info", "description": "Проксі + повний скан"})
 
-    # Логування
+    # Лог
     try:
         with open("logs/scans.log", "a", encoding="utf-8") as f:
             f.write(json.dumps(results, ensure_ascii=False) + "\n")
@@ -103,36 +99,40 @@ async def scan(target_url: str = Form(...), scan_type: str = Form(...), proxy: s
 
 
 # ==================== МОДУЛІ ====================
-async def check_security_headers(url: str, proxy: str = None):
+async def check_security_headers(url: str, proxy=None):
     try:
         resp = await make_request(url, proxy)
         h = resp.headers
-        checks = {"HSTS": "strict-transport-security" in h, "CSP": "content-security-policy" in h,
-                  "X-Frame": "x-frame-options" in h, "X-Content": "x-content-type-options" in h}
+        checks = {
+            "HSTS": "strict-transport-security" in h,
+            "CSP": "content-security-policy" in h,
+            "X-Frame": "x-frame-options" in h,
+            "X-Content": "x-content-type-options" in h
+        }
         return {"missing": [k for k, v in checks.items() if not v]}
     except:
         return {"missing": []}
 
-async def check_sensitive_files(url: str, proxy: str = None):
+async def check_sensitive_files(url: str, proxy=None):
     base = url.rstrip("/")
-    files = [".env", ".git/HEAD", "wp-config.php", "config.php", "backup.sql", "administrator"]
+    files = [".env", "wp-config.php", ".git/HEAD", "config.php", "backup.sql"]
     found = []
     async with httpx.AsyncClient(proxy=proxy, timeout=8.0) as client:
-        for file in files:
+        for f in files:
             try:
-                r = await client.get(f"{base}/{file}")
-                if r.status_code == 200 and len(r.text) > 30:
-                    found.append(file)
+                r = await client.get(f"{base}/{f}")
+                if r.status_code == 200 and len(r.text) > 20:
+                    found.append(f)
             except:
                 pass
     return found
 
-async def basic_xss_test(url: str, proxy: str = None):
-    results = []
+async def basic_xss_test(url: str, proxy=None):
     payloads = ["<script>alert(1)</script>", "<img src=x onerror=alert(1)>", "<svg/onload=alert(1)>"]
+    results = []
     for p in payloads:
         try:
-            test_url = f"{url}?test={p}"
+            test_url = f"{url}?q={p}"
             resp = await make_request(test_url, proxy)
             if p in resp.text:
                 results.append(p)
@@ -140,13 +140,12 @@ async def basic_xss_test(url: str, proxy: str = None):
             pass
     return results
 
-async def basic_sqli_test(url: str, proxy: str = None):
+async def basic_sqli_test(url: str, proxy=None):
     for p in SQLI_PAYLOADS:
         try:
             test_url = f"{url}?id={p}" if "?" not in url else f"{url}&id={p}"
             resp = await make_request(test_url, proxy)
-            lower_text = resp.text.lower()
-            if any(x in lower_text for x in ["syntax error", "mysql", "sql", "unclosed quotation"]):
+            if any(err in resp.text.lower() for err in ["syntax", "mysql", "sql", "unclosed"]):
                 return True
         except:
             pass
@@ -158,7 +157,7 @@ async def get_logs():
         with open("logs/scans.log", "r", encoding="utf-8") as f:
             return {"logs": f.readlines()[-30:]}
     except:
-        return {"logs": ["Логів ще немає."]}
+        return {"logs": ["Логів ще немає"]}
 
 @app.post("/clear-logs")
 async def clear_logs():
