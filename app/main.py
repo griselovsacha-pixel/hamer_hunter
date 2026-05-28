@@ -1,7 +1,5 @@
-from fastapi import FastAPI, Request, Form
+from fastapi import FastAPI, Form
 from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 import asyncio
 import httpx
 from bs4 import BeautifulSoup
@@ -13,15 +11,7 @@ import random
 app = FastAPI(title="Hamer Hunter")
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
-
 os.makedirs("logs", exist_ok=True)
-os.makedirs(TEMPLATES_DIR, exist_ok=True)
-
-app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
-
-# Виправлений Jinja2
-templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
@@ -36,10 +26,11 @@ async def make_request(url: str, proxy: str = None):
     async with httpx.AsyncClient(timeout=timeout, follow_redirects=True, proxy=proxy, headers=headers) as client:
         return await client.get(url)
 
+# Головна сторінка — без Jinja2 (прямий HTML)
 @app.get("/", response_class=HTMLResponse)
-async def home(request: Request):
-    # Спрощений варіант без зайвих даних у контексті
-    return templates.TemplateResponse("index.html", {"request": request})
+async def home():
+    with open(os.path.join(BASE_DIR, "templates", "index.html"), "r", encoding="utf-8") as f:
+        return f.read()
 
 @app.post("/scan")
 async def scan(target_url: str = Form(...), scan_type: str = Form(...), proxy: str = Form(None)):
@@ -64,7 +55,6 @@ async def scan(target_url: str = Form(...), scan_type: str = Form(...), proxy: s
     except Exception as e:
         return JSONResponse({"error": f"Не вдалося підключитися: {str(e)}"}, status_code=400)
 
-    # Сканування
     tasks = [
         check_security_headers(target_url, proxy),
         check_sensitive_files(target_url, proxy),
@@ -83,12 +73,12 @@ async def scan(target_url: str = Form(...), scan_type: str = Form(...), proxy: s
         results["findings"].append({"type": "Reflected XSS", "severity": "High", "description": f"Виявлено {len(xss)} payload'ів"})
 
     if sqli:
-        results["findings"].append({"type": "SQL Injection", "severity": "Critical", "description": "Можлива SQL-ін'єкція!"})
+        results["findings"].append({"type": "SQL Injection", "severity": "Critical", "description": "Можлива SQL-ін'єкція виявлена!"})
 
     if scan_type == "full":
-        results["findings"].append({"type": "Розширений", "severity": "Info", "description": "Проксі + повний скан"})
+        results["findings"].append({"type": "Розширений режим", "severity": "Info", "description": "Проксі + розширені тести"})
 
-    # Лог
+    # Логування
     try:
         with open("logs/scans.log", "a", encoding="utf-8") as f:
             f.write(json.dumps(results, ensure_ascii=False) + "\n")
@@ -98,7 +88,7 @@ async def scan(target_url: str = Form(...), scan_type: str = Form(...), proxy: s
     return results
 
 
-# ==================== МОДУЛІ ====================
+# ==================== МОДУЛІ СКАНУВАННЯ ====================
 async def check_security_headers(url: str, proxy=None):
     try:
         resp = await make_request(url, proxy)
@@ -145,7 +135,7 @@ async def basic_sqli_test(url: str, proxy=None):
         try:
             test_url = f"{url}?id={p}" if "?" not in url else f"{url}&id={p}"
             resp = await make_request(test_url, proxy)
-            if any(err in resp.text.lower() for err in ["syntax", "mysql", "sql", "unclosed"]):
+            if any(err in resp.text.lower() for err in ["syntax", "mysql", "sql", "unclosed", "error"]):
                 return True
         except:
             pass
